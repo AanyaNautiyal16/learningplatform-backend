@@ -57,8 +57,9 @@ public class CourseService {
 
     // 🔹 GET COURSE BY ID (ENTITY)
     public Course getCourseById(int id) {
-        return courseRepository.findById(id).orElse(null);
-    }
+        return courseRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Course not found with ID: " + id));
+}
 
     // 🔥 GET COURSE BY ID (DTO)
     public CourseDTO getCourseDTOById(int id) {
