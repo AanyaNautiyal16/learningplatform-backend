@@ -4,6 +4,8 @@ import com.example.learningplatform_backend.model.Course;
 import com.example.learningplatform_backend.model.User;
 import com.example.learningplatform_backend.repository.CourseRepository;
 import com.example.learningplatform_backend.repository.UserRepository;
+import com.example.learningplatform_backend.dto.CourseDTO;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,34 +21,56 @@ public class CourseService {
         this.userRepository = userRepository;
     }
 
-    // 🔹 GET ALL COURSES
+    // 🔹 GET ALL COURSES (ENTITY)
     public List<Course> getAllCourses() {
         return courseRepository.findAll();
+    }
+
+    // 🔥 GET ALL COURSES (DTO)
+    public List<CourseDTO> getAllCoursesDTO() {
+        return courseRepository.findAll()
+                .stream()
+                .map(course -> new CourseDTO(
+                        course.getId(),
+                        course.getTitle(),
+                        course.getPrice()
+                ))
+                .toList();
     }
 
     // 🔹 ADD COURSE (WITH USER RELATION)
     public Course addCourse(Course course) {
 
-        // ✅ Null safety check
         if (course.getUser() == null || course.getUser().getId() == null) {
-            throw new RuntimeException("User ID is required to create a course");
+            throw new RuntimeException("User ID is required");
         }
 
-        // ✅ Fetch full user from DB
         Integer userId = course.getUser().getId();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-        // ✅ Set full user object
         course.setUser(user);
 
         return courseRepository.save(course);
     }
 
-    // 🔹 GET COURSE BY ID
+    // 🔹 GET COURSE BY ID (ENTITY)
     public Course getCourseById(int id) {
         return courseRepository.findById(id).orElse(null);
+    }
+
+    // 🔥 GET COURSE BY ID (DTO)
+    public CourseDTO getCourseDTOById(int id) {
+
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Course not found with ID: " + id));
+
+        return new CourseDTO(
+                course.getId(),
+                course.getTitle(),
+                course.getPrice()
+        );
     }
 
     // 🔹 UPDATE COURSE
