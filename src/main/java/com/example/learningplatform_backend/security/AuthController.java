@@ -4,21 +4,23 @@ import com.example.learningplatform_backend.model.User;
 import com.example.learningplatform_backend.repository.UserRepository;
 import com.example.learningplatform_backend.security.dto.AuthRequest;
 import com.example.learningplatform_backend.security.dto.AuthResponse;
+import com.example.learningplatform_backend.security.dto.LoginRequest;
+
 import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Authentication controller for user registration and login
- * Endpoints:
- * - POST /auth/register → Create new user with encrypted password
- * - POST /auth/login → Authenticate user and return JWT token
+ * Authentication Controller
+ * Handles:
+ * - User Registration
+ * - User Login (JWT generation)
  */
 @RestController
 @RequestMapping("/auth")
@@ -36,49 +38,30 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    /**
-     * Register a new user
-     * POST /auth/register
-     *
-     * Request body:
-     * {
-     *   "email": "user@example.com",
-     *   "password": "password123",
-     *   "name": "John Doe",
-     *   "role": "STUDENT"
-     * }
-     *
-     * Response:
-     * {
-     *   "token": "eyJhbGciOiJIUzI1NiJ9...",
-     *   "type": "Bearer",
-     *   "userId": 1,
-     *   "email": "user@example.com",
-     *   "name": "John Doe",
-     *   "role": "STUDENT"
-     * }
-     */
+    // ===========================
+    // 🔹 REGISTER USER
+    // ===========================
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest authRequest) {
-        // Check if user already exists
-        if (userRepository.findByEmail(authRequest.getEmail()).isPresent()) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest request) {
+
+        // Check if email already exists
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
         }
 
-        // Create new user with encrypted password
+        // Create user
         User user = new User();
-        user.setEmail(authRequest.getEmail());
-        user.setName(authRequest.getName());
-        user.setPassword(passwordEncoder.encode(authRequest.getPassword()));
-        user.setRole(authRequest.getRole() != null ? authRequest.getRole() : "STUDENT");
+        user.setEmail(request.getEmail());
+        user.setName(request.getName());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(request.getRole() != null ? request.getRole() : "STUDENT");
 
-        // Save user to database
         User savedUser = userRepository.save(user);
 
-        // Generate JWT token
+        // Generate JWT
         String token = jwtUtil.generateToken(savedUser.getEmail(), savedUser.getRole());
 
-        // Return response with token
+        // Response
         AuthResponse response = new AuthResponse(
                 token,
                 savedUser.getId(),
@@ -90,47 +73,29 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * Login user and return JWT token
-     * POST /auth/login
-     *
-     * Request body:
-     * {
-     *   "email": "user@example.com",
-     *   "password": "password123",
-     *   "name": "",
-     *   "role": ""
-     * }
-     *
-     * Response:
-     * {
-     *   "token": "eyJhbGciOiJIUzI1NiJ9...",
-     *   "type": "Bearer",
-     *   "userId": 1,
-     *   "email": "user@example.com",
-     *   "name": "John Doe",
-     *   "role": "STUDENT"
-     * }
-     */
+    // ===========================
+    // 🔹 LOGIN USER
+    // ===========================
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest authRequest) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+
         try {
-            // Authenticate user with email and password
+            // Authenticate user
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            authRequest.getEmail(),
-                            authRequest.getPassword()
+                            request.getEmail(),
+                            request.getPassword()
                     )
             );
 
-            // Get authenticated user details
-            User user = userRepository.findByEmail(authRequest.getEmail())
+            // Fetch user from DB
+            User user = userRepository.findByEmail(request.getEmail())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // Generate JWT token
+            // Generate JWT
             String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
 
-            // Return response with token
+            // Response
             AuthResponse response = new AuthResponse(
                     token,
                     user.getId(),
@@ -140,6 +105,7 @@ public class AuthController {
             );
 
             return ResponseEntity.ok(response);
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
